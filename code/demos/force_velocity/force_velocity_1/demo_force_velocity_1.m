@@ -1,26 +1,40 @@
 function demo_force_velocity_1
-% Demo demonstrates a force_velocity curve
+% Demo demonstrates calculating a force_velocity curve using
+% isotonic releases
 
 % Variables
 model_file = 'sim_input/model.json';
 options_file = 'sim_input/options.json';
 protocol_base_file = 'sim_input/prot';
 results_base_file = 'sim_output/results';
-isotonic_forces = linspace(5000, 1.2e5, 12);
+isotonic_forces = linspace(5000, 1.5e5, 12);
 no_of_time_points = 500;
 time_step = 0.001;
 isotonic_start_s = 0.4;
 fit_time_s = [0.43 0.48];
 display_time_s = [0.35 0.5];
 
+% Image file for documentation
+doc_image_file = ...
+    '../../../../docs/pages/demos/force_velocity/force_velocity_1/force_velocity_output.png';
+
 % Make sure the path allows us to find the right files
 addpath(genpath('../../../../code'));
+
+% Get the local directory to make sure file paths are right
+base_dir = fileparts(mfilename('fullpath'));
+
+% Update model and options files
+model_file = fullfile(base_dir, model_file);
+options_file = fullfile(base_dir, options_file);
 
 % Generate protocols, storing files as a batch structure
 batch_structure = [];
 for i = 1 : numel(isotonic_forces)
-    protocol_file{i} = sprintf('%s_%i.txt', protocol_base_file, i);
-    results_file{i} = sprintf('%s_%i.myo', results_base_file, i);
+    protocol_file{i} = fullfile(base_dir, ...
+                        sprintf('%s_%i.txt', protocol_base_file, i));
+    results_file{i} = fullfile(base_dir, ...
+                        sprintf('%s_%i.myo', results_base_file, i));
 
     generate_isotonic_pCa_protocol( ...
         'time_step', time_step, ...
@@ -43,7 +57,7 @@ run_batch(batch_structure);
 
 % Now load the result files and calculate force-velocity and power
 % Display the data as you go
-figure(4);
+fig = figure(4);
 clf;
 cm = jet(numel(isotonic_forces));
 
@@ -117,16 +131,20 @@ end
 % First the fv curve
 [x0,a,b,r_squared,stress_fit,vel_fit] = fit_hyperbola( ...
     'x_data', stress, 'y_data', velocity, ...
-    'x_fit', linspace(0, 1.2e5, 100));
+    'x_fit', linspace(0, 2e5, 100));
 subplot(3,2,5);
-plot(stress_fit, vel_fit, 'k-');
+vi = find(vel_fit>=0);
+plot(stress_fit(vi), vel_fit(vi), 'k-');
 title(sprintf('(x+a)(y+b)=b(x_0+a)\na=%g, b=%g, x_0=%g',a,b,x0));
 
 % Now the power curve
 [x0,a,b,r_squared,stress_fit,pow_fit] = fit_power_curve(...
     stress, power, ...
-    'x_fit', linspace(0, 1.2e5, 100));
+    'x_fit', linspace(0, 2e5, 100));
 subplot(3,2,6);
-plot(stress_fit, pow_fit, 'k-');
+vi = find(pow_fit>=0);
+plot(stress_fit(vi), pow_fit(vi), 'k-');
 title(sprintf('y=x*b*(((x_0+a)/(x+a))-1)\na=%g, b=%g, x_0=%g',a,b,x0));
 
+% Save figure to file for documentation
+exportgraphics(fig, doc_image_file);
