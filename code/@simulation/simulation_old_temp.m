@@ -58,27 +58,27 @@ classdef simulation < handle
         end
         
         function obj = implement_pendulum_protocol(obj, varargin)
-            % Implements a pendulum test using the protocol file to
-            % set the Ca transient at each time-point
-
-            % Handle inputs
-            p = inputParser;
-            addOptional(p, 'protocol_file_string', []);
-            addOptional(p, 'pendulum_file_string', []);
-            addOptional(p, 'options_file_string', []);
-            addOptional(p, 'dt', []);
-            addOptional(p, 'pCa', []);
-            parse(p, varargin{:});
-            p = p.Results
-            
-            % Read in the protocol file if available
-            if (~isempty(p.protocol_file_string))
+%             % Implements a pendulum test using the protocol file to
+%             % set the Ca transient at each time-point
+% 
+%             % Handle inputs
+%             p = inputParser;
+%             addOptional(p, 'protocol_file_string', []);
+%             addOptional(p, 'pendulum_file_string', []);
+%             addOptional(p, 'options_file_string', []);
+%             addOptional(p, 'dt', []);
+%             addOptional(p, 'pCa', []);
+%             parse(p, varargin{:});
+%             p = p.Results
+%             
+%             % Read in the protocol file if available
+%             if (~isempty(p.protocol_file_string))
                 obj.myosim_protocol = readtable(protocol_file_string);
-            else
-                % Create a protocol from the dt and pCa arrays
-                obj.myosim_protocol.dt = p.dt;
-                obj.myosim_protocol.pCa = p.pCa;
-            end
+%             else
+%                 % Create a protocol from the dt and pCa arrays
+%                 obj.myosim_protocol.dt = p.dt;
+%                 obj.myosim_protocol.pCa = p.pCa;
+%             end
             
             % Initialize the data
             obj.initialize_myosim_data(numel(obj.myosim_protocol.dt));
@@ -100,10 +100,19 @@ classdef simulation < handle
             % Integrate over solution
             for t_counter = 1 : numel(obj.myosim_protocol.dt)
                 % Integrate the pendulum to work out the length change
-                [~, y_calc] = ode45(...
-                    @(t,y) pend_derivs(t, y, pend, ...
+                
+                if pend.isperturbed ==1
+                    [~, y_calc] = ode45(...
+                    @(t,y) pend_derivs_perturbed(t, y, pend, ...
+                        obj.myosim_muscle.muscle_force, p.Fext(t_counter)), ...
+                        [0 obj.myosim_protocol.dt(t_counter)], y);
+                else
+                    [~, y_calc] = ode45(...
+                        @(t,y) pend_derivs(t, y, pend, ...
                         obj.myosim_muscle.muscle_force), ...
                         [0 obj.myosim_protocol.dt(t_counter)], y); % LHT why is there y at the end here?
+                end
+                
                 y = y_calc(end,:);
                 dhsl = y(2) * pend.hsl_scaling_factor * ...
                     obj.myosim_protocol.dt(t_counter);
@@ -120,72 +129,72 @@ classdef simulation < handle
             end
         end
         
-        function obj = implement_pendulum_protocol_perturbed(obj, varargin)
-            % Implements a pendulum test using the protocol file to
-            % set the Ca transient at each time-point
-            % _perturbed added to set the external force at each timepoint
-            % using a pend_derivs_perturbed
-            % LHT Sept 7, 2021
-
-            % Handle inputs
-            p = inputParser;
-            addOptional(p, 'protocol_file_string', []);
-            addOptional(p, 'pendulum_file_string', []);
-            addOptional(p, 'options_file_string', []);
-            addOptional(p, 'dt', []);
-            addOptional(p, 'pCa', []);
-            addOptional(p, 'Fext',[]);
-            parse(p, varargin{:});
-            p = p.Results
-            
-            % Read in the protocol file if available
-            if (~isempty(p.protocol_file_string))
-                obj.myosim_protocol = readtable(protocol_file_string);
-            else
-                % Create a protocol from the dt and pCa arrays
-                obj.myosim_protocol.dt = p.dt;
-                obj.myosim_protocol.pCa = p.pCa;
-            end
-            
-            % Initialize the data
-            obj.initialize_myosim_data(numel(obj.myosim_protocol.dt));
-            % add in the protocol position
-            obj.sim_output.pendulum_position = ...
-                NaN * ones(numel(obj.myosim_protocol.dt),1);
-            
-            % Load in the options
-            json_struct = loadjson(p.options_file_string);
-            obj.myosim_options = json_struct.MyoSim_options;
-
-            % Open pendulum file and store pendulum properties
-            json_struct = loadjson(p.pendulum_file_string);
-            pend = json_struct.pendulum
-            
-            % Initialize
-            y = pend.initial_conditions;
-            
-            % Integrate over solution
-            for t_counter = 1 : numel(obj.myosim_protocol.dt)
-                % Integrate the pendulum to work out the length change
-                [~, y_calc] = ode45(...
-                    @(t,y) pend_derivs_perturbed(t, y, pend, ...
-                        obj.myosim_muscle.muscle_force), ...
-                        [0 obj.myosim_protocol.dt(t_counter)], y);
-                y = y_calc(end,:);
-                dhsl = y(2) * pend.hsl_scaling_factor * ...
-                    obj.myosim_protocol.dt(t_counter);
-                
-                % Update the model
-                obj.implement_time_step( ...
-                            obj.myosim_protocol.dt(t_counter), dhsl, ...
-                            10^(-obj.myosim_protocol.pCa(t_counter)), -2, ...
-                            obj.myosim_muscle.hs(1).kinetic_scheme, ...
-                            t_counter, numel(obj.myosim_protocol.dt));
-                
-                % Hold the pendulum position
-                obj.sim_output.pendulum_position(t_counter) = y(1);
-            end
-        end
+%         function obj = implement_pendulum_protocol_perturbed(obj, varargin)
+%             % Implements a pendulum test using the protocol file to
+%             % set the Ca transient at each time-point
+%             % _perturbed added to set the external force at each timepoint
+%             % using a pend_derivs_perturbed
+%             % LHT Sept 7, 2021
+% 
+%             % Handle inputs
+%             p = inputParser;
+%             addOptional(p, 'protocol_file_string', []);
+%             addOptional(p, 'pendulum_file_string', []);
+%             addOptional(p, 'options_file_string', []);
+%             addOptional(p, 'dt', []);
+%             addOptional(p, 'pCa', []);
+%             addOptional(p, 'Fext',[]);
+%             parse(p, varargin{:});
+%             p = p.Results
+%             
+%             % Read in the protocol file if available
+%             if (~isempty(p.protocol_file_string))
+%                 obj.myosim_protocol = readtable(protocol_file_string);
+%             else
+%                 % Create a protocol from the dt and pCa arrays
+%                 obj.myosim_protocol.dt = p.dt;
+%                 obj.myosim_protocol.pCa = p.pCa;
+%             end
+%             
+%             % Initialize the data
+%             obj.initialize_myosim_data(numel(obj.myosim_protocol.dt));
+%             % add in the protocol position
+%             obj.sim_output.pendulum_position = ...
+%                 NaN * ones(numel(obj.myosim_protocol.dt),1);
+%             
+%             % Load in the options
+%             json_struct = loadjson(p.options_file_string);
+%             obj.myosim_options = json_struct.MyoSim_options;
+% 
+%             % Open pendulum file and store pendulum properties
+%             json_struct = loadjson(p.pendulum_file_string);
+%             pend = json_struct.pendulum
+%             
+%             % Initialize
+%             y = pend.initial_conditions;
+%             
+%             % Integrate over solution
+%             for t_counter = 1 : numel(obj.myosim_protocol.dt)
+%                 % Integrate the pendulum to work out the length change
+%                 [~, y_calc] = ode45(...
+%                     @(t,y) pend_derivs_perturbed(t, y, pend, ...
+%                         obj.myosim_muscle.muscle_force, p.Fext(t_counter)), ...
+%                         [0 obj.myosim_protocol.dt(t_counter)], y);
+%                 y = y_calc(end,:);
+%                 dhsl = y(2) * pend.hsl_scaling_factor * ...
+%                     obj.myosim_protocol.dt(t_counter);
+%                 
+%                 % Update the model
+%                 obj.implement_time_step( ...
+%                             obj.myosim_protocol.dt(t_counter), dhsl, ...
+%                             10^(-obj.myosim_protocol.pCa(t_counter)), -2, ...
+%                             obj.myosim_muscle.hs(1).kinetic_scheme, ...
+%                             t_counter, numel(obj.myosim_protocol.dt));
+%                 
+%                 % Hold the pendulum position
+%                 obj.sim_output.pendulum_position(t_counter) = y(1);
+%             end
+%         end
         
         function obj = initialize_myosim_data(obj, no_of_points)
             % Prepare the output

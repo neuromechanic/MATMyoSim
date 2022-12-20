@@ -1,11 +1,13 @@
 {
     "pendulum":
     {
-        "m": 10,
+        "linear": 1,
+	"m": 4.95,
         "L": 0.25,
         "g": 9.81,
-        "eta": 0,
-        "hsl_scaling_factor": 500,
+        "eta": 0.166,
+	"k": 1,
+        "hsl_scaling_factor": 120,
         "force_scaling_factor": 1e-3,
         "initial_conditions": [0.0, 0]
     }
